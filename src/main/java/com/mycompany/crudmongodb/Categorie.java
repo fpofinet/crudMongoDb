@@ -23,6 +23,11 @@ import com.mongodb.client.MongoCursor;
 public class Categorie {
     private MongoDatabase database;
     private MongoClient mongoClient;
+
+    public Categorie() {
+        connexion();
+    }
+    
     
     public void connexion(){
         try {
@@ -38,17 +43,34 @@ public class Categorie {
             System.err.println(exception.getClass().getName() + ": " + exception.getMessage());
         }
     }
-    public void run(){
-        connexion();
-        insert();
+    /*public void run(){
+       // connexion();
+        //insert();
         //update();
         //delete();
+    }*/
+    
+    public MongoCursor getAll(){
+        MongoCollection collection = database.getCollection("categorie");
+        MongoCursor cursor = collection.find().iterator();
+        return cursor;
     }
     
-    public void insert() {
+    public void insertSolo(Document categ){
+        MongoCollection collection = database.getCollection("categorie"); 
+        try {
+            collection.insertOne(categ);
+            System.out.println("cat ajouter \n");
+        } catch (MongoWriteException mwe) {
+            if (mwe.getError().getCategory().equals(ErrorCategory.DUPLICATE_KEY)) {
+                System.out.println("le document avec ce existe deja");
+            }
+        }
+    }
+    public void insert(Document categ) {
         MongoCollection collection = database.getCollection("categorie");
 
-        List prods1 = new ArrayList();
+       /* List prods1 = new ArrayList();
         List prods2 = new ArrayList();
 
         Document produit1 = new Document();
@@ -56,7 +78,7 @@ public class Categorie {
         Document produit3 = new Document();
         Document produit4 = new Document();
 
-        produit1.append("ref", "prod1").append("libelle", "poulet").append("quantite", 25);
+        //produit1.append("ref", "prod5").append("libelle", "poisson").append("quantite", 110);
         produit2.append("ref", "prod2").append("libelle", "parfun").append("quantite", 11);
         produit3.append("ref", "prod3").append("libelle", "chicha").append("quantite", 105);
         produit4.append("ref", "prod4").append("libelle", "malboro").append("quantite", 105);
@@ -64,28 +86,59 @@ public class Categorie {
         Document categ1 = new Document();
         Document categ2 = new Document();
 
-        prods1.add(produit1);
+        //prods1.add(produit1);
         prods1.add(produit2);
         prods2.add(produit3);
         prods2.add(produit4);
-
-        categ1.append("code", "categ1").append("libelle", "categorie1").append("produits", prods1);
-        categ2.append("code", "categ2").append("libelle", "categorie2").append("produits", prods2);
-
+   
+        categ1.append("code", "categ3").append("libelle", "categorie3").append("produits", prods1);
+        categ2.append("code", "categ2").append("libelle", "categorie2").append("produits", prods2);*/
+        
+        Produit pro = new Produit();
+        //System.out.println("ici");
+        
         try {
-            collection.insertOne(categ1);
-            collection.insertOne(categ2);
-            System.out.println("Successfully inserted documents. \n");
+            //on verifier si la nouvelle categorie avec des produits
+            if(categ.containsKey("produits")){
+                //on recupere la liste de tout les produits de la collection produit
+                MongoCursor mc = pro.getAll();
+                //on recupere tout les produit du champ produit de la nouvelle categorie qu'on veut inserer
+                ArrayList p=(ArrayList)categ.get("produits");
+                
+                for (int i = 0; i < p.size(); i++) {
+                    Document j = (Document) p.get(i);
+                    while (mc.hasNext()) {
+                        Document k = (Document) mc.next();
+                        //on verifie si les produit existe deja dans la base de donnees. si oui on ajoute un champs categorie au produit exitant
+                        // si non on insert de nouveau produit dans la base de donnes avec la categorie correspondante
+                        if (j.get("ref").equals(k.get("ref"))) {
+                            Document upd=k;
+                            upd.append("categorie", new Document().append("code", categ.get("code")).append("libelle", categ.get("code")));
+                            pro.updateCat(k);
+                        } else{
+                            Document newProd =j;
+                            newProd.append("categorie", new Document().append("code", categ.get("code")).append("libelle", categ.get("code")));
+                            pro.add(newProd);
+                        }
+                        //System.out.println(k.get("ref"));
+                    }
+                    //System.out.println(j.toJson());
+                }
+            }
+           
+            collection.insertOne(categ);
+            //collection.insertOne(categ2);
+            System.out.println("cat ajouter \n");
         } catch (MongoWriteException mwe) {
             if (mwe.getError().getCategory().equals(ErrorCategory.DUPLICATE_KEY)) {
-                System.out.println("Document with that id already exists");
+                System.out.println("le document existe deja");
             }
         }
     }
     
     public void update(){
         MongoCollection collection = database.getCollection("categorie");
-        //up = new Document();
+        
         Document up = (Document)collection.find(Filters.eq("code", "categ1")).first();
         System.out.println(up.toJson());
         collection.updateOne(new Document("code","categ1"),new Document("$set", new Document("libelle","produit public") ) );
